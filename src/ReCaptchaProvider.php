@@ -30,11 +30,14 @@ class ReCaptchaProvider
 	/** @var string */
 	private $secretKey;
 
-	public function __construct(string $siteKey, string $secretKey)
-	{
-		$this->siteKey = $siteKey;
-		$this->secretKey = $secretKey;
-	}
+    private $minimalScore;
+
+    public function __construct(string $siteKey, string $secretKey, float $minimalScore = 0)
+    {
+        $this->siteKey = $siteKey;
+        $this->secretKey = $secretKey;
+        $this->setMinimalScore($minimalScore);
+    }
 
 	public function getSiteKey(): string
 	{
@@ -60,9 +63,12 @@ class ReCaptchaProvider
 		// Decode server answer (with key assoc reserved)
 		$answer = json_decode($response, true);
 
-		// Return response
-		return $answer['success'] === true ? new ReCaptchaResponse(true) : new ReCaptchaResponse(false, $answer['error-codes'] ?? null);
-	}
+        // Return response
+        return ($answer['success'] === true && ($this->minimalScore <= 0
+                || !isset($answer['score']) || $answer['score'] >= $this->minimalScore))
+            ? new ReCaptchaResponse(true)
+            : new ReCaptchaResponse(false, $answer['error-codes'] ?? null);
+    }
 
 	public function validateControl(BaseControl $control): bool
 	{
@@ -78,6 +84,11 @@ class ReCaptchaProvider
 
 		return false;
 	}
+
+    public function setMinimalScore(float $score): void
+    {
+        $this->minimalScore = $score;
+    }
 
 
 	/**
